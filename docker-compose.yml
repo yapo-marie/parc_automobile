@@ -1,0 +1,15 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: fleetpro-postgres
+    environment:
+      POSTGRES_DB: fleetpro
+      POSTGRES_USER: fleetpro
+      POSTGRES_PASSWORD: fleetpro
+    ports:
+      - "5432:5432"
+    volumes:
+      - fleetpro_pgdata:/var/lib/postgresql/data
+
+volumes:
+  fleetpro_pgdata:
