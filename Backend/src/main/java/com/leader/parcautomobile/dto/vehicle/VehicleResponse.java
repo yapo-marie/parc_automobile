@@ -28,5 +28,7 @@ public record VehicleResponse(
 		VehicleRecordStatus status,
 		String photoUrl,
 		String notes,
+		String imei,
+		Integer fuelLevel,
 		Instant createdAt,
 		Instant updatedAt) {}

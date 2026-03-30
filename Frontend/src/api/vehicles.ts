@@ -30,6 +30,7 @@ function toVehicleApiBody(body: VehicleWritePayload): VehicleWritePayload {
     model: body.model.trim(),
     year: yearOrNull(body.year),
     color: body.color?.trim() || null,
+    imei: body.imei?.trim() || null,
     category: body.category,
     fuelType: body.fuelType,
     mileage: finiteLongOrNull(body.mileage),
@@ -85,20 +86,22 @@ export async function fetchVehicles(options: {
   return (await res.json()) as VehiclePageResponse
 }
 
-export async function createVehicle(body: VehicleWritePayload): Promise<void> {
+export async function createVehicle(body: VehicleWritePayload): Promise<VehicleDto> {
   const res = await apiFetch('/api/vehicles', {
     method: 'POST',
     body: JSON.stringify(toVehicleApiBody(body)),
   })
   if (!res.ok) throw new Error(await readApiMessage(res))
+  return (await res.json()) as VehicleDto
 }
 
-export async function updateVehicle(id: string, body: VehicleWritePayload): Promise<void> {
+export async function updateVehicle(id: string, body: VehicleWritePayload): Promise<VehicleDto> {
   const res = await apiFetch(`/api/vehicles/${id}`, {
     method: 'PUT',
     body: JSON.stringify(toVehicleApiBody(body)),
   })
   if (!res.ok) throw new Error(await readApiMessage(res))
+  return (await res.json()) as VehicleDto
 }
 
 export async function patchVehicleAvailability(id: string, availability: string): Promise<void> {
@@ -112,4 +115,29 @@ export async function patchVehicleAvailability(id: string, availability: string)
 export async function deleteVehicle(id: string): Promise<void> {
   const res = await apiFetch(`/api/vehicles/${id}`, { method: 'DELETE' })
   if (!res.ok) throw new Error(await readApiMessage(res))
+}
+
+export async function uploadVehiclePhoto(id: string, file: File): Promise<VehicleDto> {
+  const fd = new FormData()
+  fd.append('file', file)
+  const res = await fetch(`/api/vehicles/${encodeURIComponent(id)}/photo`, {
+    method: 'POST',
+    body: fd,
+    credentials: 'include',
+    headers: (() => {
+      const raw = localStorage.getItem('auth-storage')
+      const headers: Record<string, string> = {}
+      if (!raw) return headers
+      try {
+        const parsed = JSON.parse(raw) as { state?: { accessToken?: string | null } }
+        const token = parsed.state?.accessToken
+        if (token) headers.Authorization = `Bearer ${token}`
+        return headers
+      } catch {
+        return headers
+      }
+    })(),
+  })
+  if (!res.ok) throw new Error(await readApiMessage(res))
+  return (await res.json()) as VehicleDto
 }

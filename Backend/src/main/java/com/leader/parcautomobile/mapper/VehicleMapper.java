@@ -31,6 +31,8 @@ public final class VehicleMapper {
 				v.getStatus(),
 				v.getPhotoUrl(),
 				v.getNotes(),
+				v.getImei(),
+				v.getFuelLevel(),
 				v.getCreatedAt(),
 				v.getUpdatedAt());
 	}
@@ -55,7 +57,8 @@ public final class VehicleMapper {
 				.availability(av)
 				.status(st)
 				.photoUrl(trimToNull(r.photoUrl()))
-				.notes(trimToNull(r.notes()));
+				.notes(trimToNull(r.notes()))
+				.imei(trimToNull(r.imei()));
 	}
 
 	public static void applyUpdate(Vehicle v, UpdateVehicleRequest r, String plate) {
@@ -79,6 +82,7 @@ public final class VehicleMapper {
 		v.setStatus(st);
 		v.setPhotoUrl(trimToNull(r.photoUrl()));
 		v.setNotes(trimToNull(r.notes()));
+		v.setImei(trimToNull(r.imei()));
 	}
 
 	private static String trimToNull(String s) {

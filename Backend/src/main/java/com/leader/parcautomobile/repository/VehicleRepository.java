@@ -15,6 +15,8 @@ public interface VehicleRepository extends JpaRepository<Vehicle, UUID>, JpaSpec
 
 	Optional<Vehicle> findByImei(String imei);
 
+	boolean existsByImei(String imei);
+
 	@Query(
 			"""
 			select v

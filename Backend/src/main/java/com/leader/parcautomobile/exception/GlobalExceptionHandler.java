@@ -12,6 +12,7 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.LockedException;
 import org.springframework.security.authorization.AuthorizationDeniedException;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -20,6 +21,17 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 @RestControllerAdvice
 @Order(Ordered.HIGHEST_PRECEDENCE)
 public class GlobalExceptionHandler {
+
+	@ExceptionHandler(HttpMessageNotReadableException.class)
+	public ResponseEntity<ApiError> handleNotReadable(HttpMessageNotReadableException ex) {
+		String hint = ex.getMessage() != null ? ex.getMessage() : "";
+		List<String> details = hint.isBlank() ? List.of() : List.of(hint);
+		ApiError body = ApiError.of(
+				"BAD_JSON",
+				"Corps JSON invalide (types ou enums incompatibles)",
+				details);
+		return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body);
+	}
 
 	@ExceptionHandler(MethodArgumentNotValidException.class)
 	public ResponseEntity<ApiError> handleValidation(MethodArgumentNotValidException ex) {
@@ -66,6 +78,12 @@ public class GlobalExceptionHandler {
 	@ExceptionHandler(DuplicateRoleNameException.class)
 	public ResponseEntity<ApiError> handleDuplicateRoleName(DuplicateRoleNameException ex) {
 		ApiError body = ApiError.of("DUPLICATE_ROLE_NAME", ex.getMessage(), List.of());
+		return ResponseEntity.status(HttpStatus.CONFLICT).body(body);
+	}
+
+	@ExceptionHandler(DuplicateImeiException.class)
+	public ResponseEntity<ApiError> handleDuplicateImei(DuplicateImeiException ex) {
+		ApiError body = ApiError.of("DUPLICATE_IMEI", ex.getMessage(), List.of());
 		return ResponseEntity.status(HttpStatus.CONFLICT).body(body);
 	}
 

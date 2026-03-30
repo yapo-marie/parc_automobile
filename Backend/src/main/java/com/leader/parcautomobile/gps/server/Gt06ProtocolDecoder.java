@@ -83,7 +83,7 @@ public class Gt06ProtocolDecoder extends ByteToMessageDecoder {
 			case 0x16: // alarm
 				return decodeAlarm(frame);
 			default:
-				return new Gt06DecodedMessage(null, Instant.now(), null, null, null, null, null, null, null, null, null, messageTypeCode);
+				return new Gt06DecodedMessage(null, Instant.now(), null, null, null, null, null, null, null, null, null, null, messageTypeCode);
 		}
 	}
 
@@ -107,6 +107,7 @@ public class Gt06ProtocolDecoder extends ByteToMessageDecoder {
 		return new Gt06DecodedMessage(
 				imei,
 				Instant.now(),
+				null,
 				null,
 				null,
 				null,
@@ -152,6 +153,7 @@ public class Gt06ProtocolDecoder extends ByteToMessageDecoder {
 				0D,
 				null,
 				null,
+				null,
 				messageTypeCode);
 	}
 
@@ -170,6 +172,9 @@ public class Gt06ProtocolDecoder extends ByteToMessageDecoder {
 			default -> alarmType = null;
 		}
 
+		int voltageLevel = frame.length > 5 ? (frame[5] & 0xFF) : 0;
+		Integer fuelLevel = mapVoltageToFuelLevel(voltageLevel);
+
 		return new Gt06DecodedMessage(
 				null,
 				Instant.now(),
@@ -181,6 +186,7 @@ public class Gt06ProtocolDecoder extends ByteToMessageDecoder {
 				null,
 				null,
 				ignitionOn,
+				fuelLevel,
 				alarmType,
 				0x13);
 	}
@@ -218,6 +224,8 @@ public class Gt06ProtocolDecoder extends ByteToMessageDecoder {
 			default -> alarmType = null;
 		}
 
+		int voltageLevel = frame.length > 32 ? (frame[32] & 0xFF) : 0;
+		Integer fuelLevel = mapVoltageToFuelLevel(voltageLevel);
 		return new Gt06DecodedMessage(
 				null,
 				ts,
@@ -229,6 +237,7 @@ public class Gt06ProtocolDecoder extends ByteToMessageDecoder {
 				satellites,
 				0D,
 				ignitionOn,
+				fuelLevel,
 				alarmType,
 				0x16);
 	}
@@ -268,6 +277,19 @@ public class Gt06ProtocolDecoder extends ByteToMessageDecoder {
 				| ((long) (frame[offset + 1] & 0xFF) << 16)
 				| ((long) (frame[offset + 2] & 0xFF) << 8)
 				| ((long) (frame[offset + 3] & 0xFF));
+	}
+
+	private static Integer mapVoltageToFuelLevel(int voltageLevel) {
+		// GT06 expose souvent un "voltage level" 0..6 ; on le projette en pourcentage.
+		return switch (voltageLevel) {
+			case 1 -> 10;
+			case 2 -> 20;
+			case 3 -> 40;
+			case 4 -> 60;
+			case 5 -> 80;
+			case 6 -> 100;
+			default -> null;
+		};
 	}
 
 }

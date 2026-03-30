@@ -9,6 +9,7 @@ import {
 } from '../api/users'
 import { apiFetch } from '../api/client'
 import type { CreateUserPayload, UserDto } from '../types/user'
+import { ConfirmDialog } from '../components/common/ConfirmDialog'
 
 const STATUS_OPTIONS: { value: string; label: string }[] = [
   { value: '', label: 'Tous' },
@@ -38,11 +39,16 @@ export function UsersPage() {
   const [ln, setLn] = useState('')
   const [email, setEmail] = useState('')
   const [phone, setPhone] = useState('')
-  const [position, setPosition] = useState('')
   const [password, setPassword] = useState('Temporaire1!')
   const [selectedRoles, setSelectedRoles] = useState<string[]>(['DRIVER'])
   const [mustChange, setMustChange] = useState(true)
   const [createMsg, setCreateMsg] = useState<string | null>(null)
+  const [confirmAction, setConfirmAction] = useState<{
+    title: string
+    message: string
+    variant: 'danger' | 'warning'
+    run: () => Promise<void>
+  } | null>(null)
 
   const can = useCallback(
     (code: string) => (meAuths ? meAuths.includes(code) : false),
@@ -116,7 +122,6 @@ export function UsersPage() {
       lastname: ln.trim(),
       email: email.trim(),
       phone: phone.trim() || null,
-      position: position.trim() || null,
       password,
       roleNames: selectedRoles,
       mustChangePassword: mustChange,
@@ -128,7 +133,6 @@ export function UsersPage() {
       setLn('')
       setEmail('')
       setPhone('')
-      setPosition('')
       setPassword('Temporaire1!')
       setSelectedRoles(['DRIVER'])
       setMustChange(true)
@@ -139,13 +143,15 @@ export function UsersPage() {
   }
 
   async function onDeactivate(u: UserDto) {
-    if (!confirm(`Désactiver ${u.email} ?`)) return
-    try {
-      await patchUserStatus(u.id, 'INACTIVE')
-      await load()
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Erreur')
-    }
+    setConfirmAction({
+      title: 'Désactiver cet utilisateur ?',
+      message: `L'utilisateur ${u.firstname} ${u.lastname} ne pourra plus se connecter.`,
+      variant: 'warning',
+      run: async () => {
+        await patchUserStatus(u.id, 'INACTIVE')
+        await load()
+      },
+    })
   }
 
   async function onActivate(u: UserDto) {
@@ -158,13 +164,15 @@ export function UsersPage() {
   }
 
   async function onDelete(u: UserDto) {
-    if (!confirm(`Supprimer (archiver) ${u.email} ?`)) return
-    try {
-      await deleteUser(u.id)
-      await load()
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Erreur')
-    }
+    setConfirmAction({
+      title: 'Archiver cet utilisateur ?',
+      message: `Cette action va supprimer logiquement le compte de ${u.firstname} ${u.lastname}.`,
+      variant: 'danger',
+      run: async () => {
+        await deleteUser(u.id)
+        await load()
+      },
+    })
   }
 
   const roleOptions = useMemo(() => [...roleNames].sort(), [roleNames])
@@ -324,10 +332,6 @@ export function UsersPage() {
                 <input value={phone} onChange={(e) => setPhone(e.target.value)} />
               </label>
               <label className="field">
-                <span>Poste</span>
-                <input value={position} onChange={(e) => setPosition(e.target.value)} />
-              </label>
-              <label className="field">
                 <span>Mot de passe initial</span>
                 <input
                   type="password"
@@ -354,13 +358,27 @@ export function UsersPage() {
             </fieldset>
             <label className="check">
               <input type="checkbox" checked={mustChange} onChange={(e) => setMustChange(e.target.checked)} />
-              Forcer le changement de mot de passe à la prochaine connexion
+              Changer de mot de passe à la prochaine connexion
             </label>
             <button type="submit">Créer</button>
           </form>
           {createMsg ? <p className="muted">{createMsg}</p> : null}
         </section>
       ) : null}
+      <ConfirmDialog
+        open={!!confirmAction}
+        title={confirmAction?.title ?? ''}
+        message={confirmAction?.message ?? ''}
+        confirmLabel={confirmAction?.variant === 'danger' ? 'Archiver définitivement' : 'Désactiver'}
+        confirmVariant={confirmAction?.variant ?? 'warning'}
+        onCancel={() => setConfirmAction(null)}
+        onConfirm={() => {
+          const action = confirmAction
+          setConfirmAction(null)
+          if (!action) return
+          void action.run().catch((e) => setError(e instanceof Error ? e.message : 'Erreur'))
+        }}
+      />
     </div>
   )
 }

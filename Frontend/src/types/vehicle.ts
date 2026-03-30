@@ -1,7 +1,8 @@
 export type VehicleCategory = 'BERLINE' | 'SUV' | 'UTILITAIRE' | 'CAMION' | 'MOTO'
 
-export type FuelType = 'ESSENCE' | 'DIESEL' | 'HYBRIDE' | 'ELECTRIQUE' | 'GPL'
+export type FuelType = 'ESSENCE' | 'DIESEL' | 'HYBRIDE' | 'ELECTRIQUE' 
 
+/** Valeurs alignées sur l’enum Java `VehicleAvailability` (sérialisation JSON). */
 export type VehicleAvailability =
   | 'AVAILABLE'
   | 'ASSIGNED'
@@ -9,6 +10,7 @@ export type VehicleAvailability =
   | 'CONTROLE_REQUIS'
   | 'OUT_OF_SERVICE'
 
+/** Valeurs alignées sur l’enum Java `VehicleRecordStatus`. */
 export type VehicleRecordStatus = 'ACTIVE' | 'INACTIVE' | 'ARCHIVED'
 
 export type VehicleDto = {
@@ -18,18 +20,20 @@ export type VehicleDto = {
   model: string
   year: number | null
   color: string | null
+  imei: string | null
   category: VehicleCategory | null
   fuelType: FuelType | null
   mileage: number
   power: number | null
   seats: number | null
   acquisitionDate: string | null
-  acquisitionValue: number | string | null
-  insuranceExpiry: string | null
+  acquisitionValue?: number | string | null
+  insuranceExpiry?: string | null
   availability: VehicleAvailability
   status: VehicleRecordStatus
   photoUrl: string | null
   notes: string | null
+  fuelLevel?: number | null
   createdAt: string
   updatedAt: string
 }
@@ -48,6 +52,7 @@ export type VehicleWritePayload = {
   model: string
   year: number | null
   color: string | null
+  imei: string | null
   category: VehicleCategory | null
   fuelType: FuelType | null
   mileage: number | null

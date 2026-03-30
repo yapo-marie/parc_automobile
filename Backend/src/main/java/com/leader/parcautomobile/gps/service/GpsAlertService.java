@@ -5,10 +5,15 @@ import com.leader.parcautomobile.gps.entity.AlertType;
 import com.leader.parcautomobile.gps.entity.GpsAlert;
 import com.leader.parcautomobile.gps.entity.Geofence;
 import com.leader.parcautomobile.gps.server.Gt06DecodedMessage;
+import com.leader.parcautomobile.entity.NotificationType;
+import com.leader.parcautomobile.entity.Zone;
 import com.leader.parcautomobile.gps.repository.GpsAlertRepository;
 import com.leader.parcautomobile.gps.repository.GeofenceRepository;
 import com.leader.parcautomobile.gps.websocket.GpsWebSocketBroadcaster;
 import com.leader.parcautomobile.entity.Vehicle;
+import com.leader.parcautomobile.repository.UserRepository;
+import com.leader.parcautomobile.repository.ZoneRepository;
+import com.leader.parcautomobile.service.NotificationService;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
@@ -25,10 +30,15 @@ public class GpsAlertService {
 
 	private final GpsAlertRepository gpsAlertRepository;
 	private final GeofenceRepository geofenceRepository;
+	private final ZoneRepository zoneRepository;
 	private final GpsWebSocketBroadcaster broadcaster;
+	private final NotificationService notificationService;
+	private final UserRepository userRepository;
 
 	@Value("${gps.alerts.default-max-speed:120}")
 	private double defaultMaxSpeed;
+	@Value("${gps.alerts.fuel-alert-threshold:15}")
+	private int fuelAlertThreshold;
 
 	@Transactional
 	public void checkAlerts(Vehicle vehicle, Gt06DecodedMessage msg) {
@@ -40,6 +50,9 @@ public class GpsAlertService {
 					AlertType.OVERSPEED,
 					"Vitesse excessive : " + Math.round(msg.speed()) + " km/h (max " + (int) defaultMaxSpeed + ")",
 					msg);
+		}
+		if (msg.fuelLevel() != null && msg.fuelLevel() < fuelAlertThreshold) {
+			createAlert(vehicle, AlertType.LOW_FUEL, "Niveau carburant bas : " + msg.fuelLevel() + "%", msg);
 		}
 
 		// Alarmes GT06 (collision / power cut / SOS)
@@ -75,7 +88,52 @@ public class GpsAlertService {
 					createAlert(vehicle, AlertType.GEOFENCE_ENTER, "Entrée dans zone : " + fence.getName(), msg);
 				}
 			}
+
+			checkZoneAlerts(vehicle, msg);
 		}
+	}
+
+	private void checkZoneAlerts(Vehicle vehicle, Gt06DecodedMessage msg) {
+		if (msg.latitude() == null || msg.longitude() == null) return;
+		List<Zone> zones = zoneRepository.findActiveByVehicleId(vehicle.getId());
+		Double prevLat = vehicle.getLastLatitude();
+		Double prevLng = vehicle.getLastLongitude();
+		for (Zone zone : zones) {
+			if (zone.getCenterLat() == null || zone.getCenterLng() == null || zone.getRadiusMeters() == null) continue;
+			boolean inside = haversineMeters(msg.latitude(), msg.longitude(), zone.getCenterLat(), zone.getCenterLng())
+					<= zone.getRadiusMeters();
+			boolean wasInside = prevLat != null && prevLng != null
+					&& haversineMeters(prevLat, prevLng, zone.getCenterLat(), zone.getCenterLng()) <= zone.getRadiusMeters();
+
+			if (wasInside && !inside) {
+				createAlert(vehicle, AlertType.ZONE_EXIT, "Sortie de zone : " + zone.getName(), msg);
+				sendManagersNotification(
+						"Sortie de zone",
+						vehicle.getPlateNumber() + " a quitté " + zone.getName(),
+						"/gps/alerts");
+			} else if (!wasInside && inside) {
+				createAlert(vehicle, AlertType.ZONE_ENTER, "Entrée dans zone : " + zone.getName(), msg);
+			}
+
+			if (inside && zone.getMaxSpeedKmh() != null && zone.getMaxSpeedKmh() > 0
+					&& msg.speed() != null && msg.speed() > zone.getMaxSpeedKmh()) {
+				createAlert(
+						vehicle,
+						AlertType.ZONE_OVERSPEED,
+						"Vitesse excessive dans " + zone.getName() + " : " + Math.round(msg.speed())
+								+ " km/h (max " + zone.getMaxSpeedKmh() + ")",
+						msg);
+			}
+		}
+	}
+
+	private void sendManagersNotification(String title, String message, String link) {
+		List<String> emails = new java.util.ArrayList<>();
+		emails.addAll(userRepository.findActiveEmailsByRoleName("SUPER_ADMIN"));
+		emails.addAll(userRepository.findActiveEmailsByRoleName("ADMIN"));
+		emails.addAll(userRepository.findActiveEmailsByRoleName("FLEET_MANAGER"));
+		emails.stream().distinct().forEach(email -> userRepository.findByEmailWithRoles(email).ifPresent(
+				u -> notificationService.send(u.getId(), title, message, NotificationType.ALERT_GPS, link)));
 	}
 
 	private void createAlert(Vehicle vehicle, AlertType type, String message, Gt06DecodedMessage msg) {

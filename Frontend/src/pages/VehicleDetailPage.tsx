@@ -39,7 +39,7 @@ function availabilityLabel(a: VehicleAvailability): string {
     case 'AVAILABLE':
       return 'Disponible'
     case 'ASSIGNED':
-      return 'Attribué'
+      return 'Affectée'
     case 'IN_REPAIR':
       return 'En réparation'
     case 'CONTROLE_REQUIS':
@@ -293,9 +293,6 @@ export function VehicleDetailPage() {
                   <dt>Date d&apos;acquisition</dt>
                   <dd>{fmtDate(v.acquisitionDate)}</dd>
                   <dt>Valeur d&apos;acquisition</dt>
-                  <dd>{fmtMoney(v.acquisitionValue)}</dd>
-                  <dt>Fin d&apos;assurance</dt>
-                  <dd>{fmtDate(v.insuranceExpiry)}</dd>
                   <dt>Disponibilité</dt>
                   <dd>{availabilityLabel(v.availability)}</dd>
                   <dt>Statut fiche</dt>

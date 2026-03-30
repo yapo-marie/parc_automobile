@@ -7,6 +7,7 @@ import com.leader.parcautomobile.entity.VehicleRecordStatus;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -28,4 +29,7 @@ public record UpdateVehicleRequest(
 		VehicleAvailability availability,
 		VehicleRecordStatus status,
 		String photoUrl,
-		String notes) {}
+		String notes,
+		@NotBlank
+				@Pattern(regexp = "^\\d{15}$", message = "L'IMEI doit contenir exactement 15 chiffres")
+				String imei) {}

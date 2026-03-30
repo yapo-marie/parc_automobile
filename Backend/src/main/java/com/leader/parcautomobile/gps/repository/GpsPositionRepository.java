@@ -19,6 +19,8 @@ public interface GpsPositionRepository extends JpaRepository<GpsPosition, UUID> 
 	List<GpsPosition> findByVehicleIdAndRecordedAtBetweenOrderByRecordedAtAsc(
 			UUID vehicleId, Instant from, Instant to);
 
+	List<GpsPosition> findTop200ByVehicleIdOrderByRecordedAtDesc(UUID vehicleId);
+
 	@Query(
 			"""
 			select p from GpsPosition p

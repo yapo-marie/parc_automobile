@@ -15,9 +15,13 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
+import org.springframework.core.io.Resource;
+import org.springframework.core.io.UrlResource;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -28,6 +32,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 
 @RestController
 @RequestMapping("/api/vehicles")
@@ -79,5 +85,35 @@ public class VehicleController {
 	public ResponseEntity<Void> delete(@PathVariable UUID id) {
 		vehicleService.softDelete(id);
 		return ResponseEntity.noContent().build();
+	}
+
+	@PostMapping("/{id}/photo")
+	@PreAuthorize("hasAuthority('VEHICLE_UPDATE')")
+	public VehicleResponse uploadPhoto(@PathVariable UUID id, @RequestParam("file") MultipartFile file) {
+		return vehicleService.uploadPhoto(id, file);
+	}
+
+	@GetMapping("/photos/{filename:.+}")
+	public ResponseEntity<Resource> getPhoto(@PathVariable String filename) {
+		try {
+			Path file = Paths.get("uploads", "vehicles", filename).normalize();
+			Resource resource = new UrlResource(file.toUri());
+			if (!resource.exists() || !resource.isReadable()) {
+				return ResponseEntity.notFound().build();
+			}
+			String ext = "";
+			int dot = filename.lastIndexOf('.');
+			if (dot >= 0) ext = filename.substring(dot + 1).toLowerCase();
+			MediaType mediaType = switch (ext) {
+				case "jpg", "jpeg" -> MediaType.IMAGE_JPEG;
+				case "png" -> MediaType.IMAGE_PNG;
+				case "webp" -> MediaType.parseMediaType("image/webp");
+				default -> MediaType.APPLICATION_OCTET_STREAM;
+			};
+			return ResponseEntity.ok().contentType(mediaType).body(resource);
+		}
+		catch (Exception e) {
+			return ResponseEntity.notFound().build();
+		}
 	}
 }

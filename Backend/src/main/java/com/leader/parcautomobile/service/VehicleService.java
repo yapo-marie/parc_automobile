@@ -10,6 +10,7 @@ import com.leader.parcautomobile.entity.VehicleAvailability;
 import com.leader.parcautomobile.entity.VehicleCategory;
 import com.leader.parcautomobile.entity.VehicleRecordStatus;
 import com.leader.parcautomobile.exception.DuplicatePlateException;
+import com.leader.parcautomobile.exception.DuplicateImeiException;
 import com.leader.parcautomobile.exception.ResourceNotFoundException;
 import com.leader.parcautomobile.mapper.VehicleMapper;
 import com.leader.parcautomobile.repository.VehicleRepository;
@@ -23,6 +24,12 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
+import org.springframework.web.multipart.MultipartFile;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 
 @Service
 @RequiredArgsConstructor
@@ -72,6 +79,9 @@ public class VehicleService {
 		if (vehicleRepository.existsByPlateNumberIgnoreCase(plate)) {
 			throw new DuplicatePlateException("Cette immatriculation est déjà enregistrée");
 		}
+		if (vehicleRepository.existsByImei(request.imei().trim())) {
+			throw new DuplicateImeiException("Cet IMEI est déjà enregistré");
+		}
 		Vehicle.VehicleBuilder b = Vehicle.builder();
 		VehicleMapper.applyCreate(b, request, plate);
 		Vehicle saved = vehicleRepository.save(b.build());
@@ -86,8 +96,44 @@ public class VehicleService {
 				&& vehicleRepository.existsByPlateNumberIgnoreCase(plate)) {
 			throw new DuplicatePlateException("Cette immatriculation est déjà enregistrée");
 		}
+		String imei = request.imei().trim();
+		if (!imei.equals(v.getImei()) && vehicleRepository.existsByImei(imei)) {
+			throw new DuplicateImeiException("Cet IMEI est déjà enregistré");
+		}
 		VehicleMapper.applyUpdate(v, request, plate);
 		return VehicleMapper.toResponse(vehicleRepository.save(v));
+	}
+
+	@Transactional
+	public VehicleResponse uploadPhoto(UUID id, MultipartFile file) {
+		Vehicle v = requireActive(id);
+		if (file == null || file.isEmpty()) {
+			throw new IllegalArgumentException("Fichier image requis");
+		}
+		if (file.getSize() > 5L * 1024 * 1024) {
+			throw new IllegalArgumentException("Image trop volumineuse (max 5 Mo)");
+		}
+
+		String original = file.getOriginalFilename() == null ? "" : file.getOriginalFilename().toLowerCase();
+		String ext = "";
+		int dot = original.lastIndexOf('.');
+		if (dot >= 0) ext = original.substring(dot + 1);
+		if (!java.util.Set.of("jpg", "jpeg", "png", "webp").contains(ext)) {
+			throw new IllegalArgumentException("Format image non supporté (jpg/jpeg/png/webp)");
+		}
+
+		try {
+			Path uploadDir = Paths.get("uploads", "vehicles");
+			Files.createDirectories(uploadDir);
+			String filename = id + "_" + java.util.UUID.randomUUID() + "." + ext;
+			Path target = uploadDir.resolve(filename);
+			Files.copy(file.getInputStream(), target, StandardCopyOption.REPLACE_EXISTING);
+			v.setPhotoUrl("/api/vehicles/photos/" + filename);
+			Vehicle saved = vehicleRepository.save(v);
+			return VehicleMapper.toResponse(saved);
+		} catch (Exception e) {
+			throw new IllegalArgumentException("Impossible de sauvegarder la photo");
+		}
 	}
 
 	@Transactional

@@ -18,6 +18,7 @@ public record Gt06DecodedMessage(
 		Integer satellites,
 		Double accuracy,
 		Boolean ignitionOn,
+		Integer fuelLevel,
 		AlertType alarmType,
 		int messageTypeCode) {
 }

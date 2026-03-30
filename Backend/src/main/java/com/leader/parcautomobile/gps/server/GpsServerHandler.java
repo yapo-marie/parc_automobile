@@ -42,6 +42,7 @@ public class GpsServerHandler extends SimpleChannelInboundHandler<Gt06DecodedMes
 						msg.satellites(),
 						msg.accuracy(),
 						msg.ignitionOn(),
+						msg.fuelLevel(),
 						msg.alarmType(),
 						msg.messageTypeCode())
 				: msg;

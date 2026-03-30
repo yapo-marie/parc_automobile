@@ -65,6 +65,9 @@ public class GpsPosition {
 	@Column(nullable = false)
 	private boolean ignition;
 
+	@Column(name = "fuel_level")
+	private Integer fuelLevel;
+
 	@Column(name = "recorded_at", nullable = false)
 	private Instant recordedAt;
 

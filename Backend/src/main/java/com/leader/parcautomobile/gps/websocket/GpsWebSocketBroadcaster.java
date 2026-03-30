@@ -2,6 +2,7 @@ package com.leader.parcautomobile.gps.websocket;
 
 import com.leader.parcautomobile.gps.dto.GpsAlertDto;
 import com.leader.parcautomobile.gps.dto.GpsPositionDto;
+import com.leader.parcautomobile.dto.notification.NotificationResponse;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
@@ -25,6 +26,10 @@ public class GpsWebSocketBroadcaster {
 				dto);
 		// Pour le dashboard global (le prompt frontend s'abonne à /topic/alerts).
 		messagingTemplate.convertAndSend("/topic/alerts", dto);
+	}
+
+	public void sendNotification(UUID userId, NotificationResponse dto) {
+		messagingTemplate.convertAndSend("/topic/notifications/" + userId, dto);
 	}
 }
 

@@ -68,6 +68,8 @@ public class SecurityConfig {
 						"/api/auth/forgot-password",
 						"/api/auth/reset-password")
 				.permitAll()
+				.requestMatchers(HttpMethod.GET, "/api/vehicles/photos/**")
+				.permitAll()
 				.requestMatchers("/api/**")
 				.authenticated()
 				.anyRequest()

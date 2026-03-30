@@ -8,6 +8,9 @@ public enum AlertType {
 	COLLISION,
 	ENGINE_OFF_ZONE,
 	POWER_CUT,
-	SOS
+	SOS,
+	ZONE_EXIT,
+	ZONE_ENTER,
+	ZONE_OVERSPEED
 }
 

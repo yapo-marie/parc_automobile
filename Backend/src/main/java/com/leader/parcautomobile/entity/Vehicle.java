@@ -115,6 +115,9 @@ public class Vehicle {
 	@Column(name = "ignition_on", nullable = false)
 	private boolean ignitionOn = false;
 
+	@Column(name = "fuel_level")
+	private Integer fuelLevel;
+
 	@PrePersist
 	void prePersist() {
 		Instant now = Instant.now();

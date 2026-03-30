@@ -6,6 +6,7 @@ import {
   deleteVehicle,
   fetchVehicles,
   patchVehicleAvailability,
+  uploadVehiclePhoto,
   updateVehicle,
 } from '../api/vehicles'
 import type {
@@ -16,9 +17,11 @@ import type {
   VehicleRecordStatus,
   VehicleWritePayload,
 } from '../types/vehicle'
+import { ImageUpload } from '../components/common/ImageUpload'
+import { ConfirmDialog } from '../components/common/ConfirmDialog'
 
 const CATEGORIES: VehicleCategory[] = ['BERLINE', 'SUV', 'UTILITAIRE', 'CAMION', 'MOTO']
-const FUELS: FuelType[] = ['ESSENCE', 'DIESEL', 'HYBRIDE', 'ELECTRIQUE', 'GPL']
+const FUELS: FuelType[] = ['ESSENCE', 'DIESEL', 'HYBRIDE', 'ELECTRIQUE']
 const AVAILS: VehicleAvailability[] = [
   'AVAILABLE',
   'ASSIGNED',
@@ -26,7 +29,22 @@ const AVAILS: VehicleAvailability[] = [
   'CONTROLE_REQUIS',
   'OUT_OF_SERVICE',
 ]
+
+const AVAIL_LABELS: Record<VehicleAvailability, string> = {
+  AVAILABLE: 'Disponible',
+  ASSIGNED: 'Affectée',
+  IN_REPAIR: 'En réparation',
+  CONTROLE_REQUIS: 'Contrôle requis',
+  OUT_OF_SERVICE: 'Hors service',
+}
+
 const STATUSES: VehicleRecordStatus[] = ['ACTIVE', 'INACTIVE', 'ARCHIVED']
+
+const STATUS_LABELS: Record<VehicleRecordStatus, string> = {
+  ACTIVE: 'Actif',
+  INACTIVE: 'Inactif',
+  ARCHIVED: 'Archivé',
+}
 
 function emptyForm(): VehicleWritePayload {
   return {
@@ -35,6 +53,7 @@ function emptyForm(): VehicleWritePayload {
     model: '',
     year: null,
     color: null,
+    imei: '',
     category: null,
     fuelType: null,
     mileage: null,
@@ -65,6 +84,7 @@ function dtoToForm(v: VehicleDto): VehicleWritePayload {
     model: v.model,
     year: v.year,
     color: v.color,
+    imei: v.imei ?? '',
     category: v.category,
     fuelType: v.fuelType,
     mileage: v.mileage,
@@ -72,7 +92,7 @@ function dtoToForm(v: VehicleDto): VehicleWritePayload {
     seats: v.seats,
     acquisitionDate: v.acquisitionDate,
     acquisitionValue: acq,
-    insuranceExpiry: v.insuranceExpiry,
+    insuranceExpiry: v.insuranceExpiry ?? null,
     availability: v.availability,
     status: v.status,
     photoUrl: v.photoUrl,
@@ -101,6 +121,10 @@ export function VehiclesPage() {
   const [form, setForm] = useState<VehicleWritePayload>(() => emptyForm())
   const [editingId, setEditingId] = useState<string | null>(null)
   const [formMsg, setFormMsg] = useState<string | null>(null)
+  const [showAdvanced, setShowAdvanced] = useState(false)
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+  const [pendingPhoto, setPendingPhoto] = useState<File | null>(null)
+  const [confirmDelete, setConfirmDelete] = useState<VehicleDto | null>(null)
 
   const can = useCallback(
     (code: string) => (meAuths ? meAuths.includes(code) : false),
@@ -156,12 +180,16 @@ export function VehiclesPage() {
     setForm(dtoToForm(v))
     setEditingId(v.id)
     setFormMsg(null)
+    setPreviewUrl(v.photoUrl ?? null)
+    setPendingPhoto(null)
   }
 
   function cancelEdit() {
     setForm(emptyForm())
     setEditingId(null)
     setFormMsg(null)
+    setPreviewUrl(null)
+    setPendingPhoto(null)
   }
 
   async function onSubmit(e: FormEvent) {
@@ -170,11 +198,20 @@ export function VehiclesPage() {
     try {
       if (editingId) {
         await updateVehicle(editingId, form)
+        if (pendingPhoto) {
+          const withPhoto = await uploadVehiclePhoto(editingId, pendingPhoto)
+          setPreviewUrl(withPhoto.photoUrl)
+        }
         setFormMsg('Véhicule mis à jour.')
       } else {
-        await createVehicle(form)
+        const created = await createVehicle(form)
+        if (pendingPhoto && created?.id) {
+          await uploadVehiclePhoto(created.id, pendingPhoto)
+        }
         setFormMsg('Véhicule créé.')
         setForm(emptyForm())
+        setPreviewUrl(null)
+        setPendingPhoto(null)
       }
       await load()
     } catch (err) {
@@ -192,7 +229,6 @@ export function VehiclesPage() {
   }
 
   async function onDelete(v: VehicleDto) {
-    if (!confirm(`Archiver ${v.plateNumber} ?`)) return
     try {
       await deleteVehicle(v.id)
       if (editingId === v.id) cancelEdit()
@@ -240,7 +276,7 @@ export function VehiclesPage() {
               <option value="">Toutes</option>
               {AVAILS.map((a) => (
                 <option key={a} value={a}>
-                  {a}
+                  {AVAIL_LABELS[a]}
                 </option>
               ))}
             </select>
@@ -251,7 +287,7 @@ export function VehiclesPage() {
               <option value="">Tous</option>
               {STATUSES.map((s) => (
                 <option key={s} value={s}>
-                  {s}
+                  {STATUS_LABELS[s]}
                 </option>
               ))}
             </select>
@@ -300,7 +336,16 @@ export function VehiclesPage() {
                         </Link>
                       </td>
                       <td>
-                        {v.brand} {v.model}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          {v.photoUrl ? (
+                            <img src={v.photoUrl} alt={v.plateNumber} style={{ width: 30, height: 30, borderRadius: 6, objectFit: 'cover' }} />
+                          ) : (
+                            <span style={{ width: 30, textAlign: 'center' }}>🚗</span>
+                          )}
+                          <span>
+                            {v.brand} {v.model}
+                          </span>
+                        </div>
                       </td>
                       <td>{v.category ?? '—'}</td>
                       <td>
@@ -312,15 +357,15 @@ export function VehiclesPage() {
                           >
                             {AVAILS.map((a) => (
                               <option key={a} value={a}>
-                                {a}
+                                {AVAIL_LABELS[a]}
                               </option>
                             ))}
                           </select>
                         ) : (
-                          v.availability
+                          AVAIL_LABELS[v.availability] ?? v.availability
                         )}
                       </td>
-                      <td>{v.status}</td>
+                      <td>{STATUS_LABELS[v.status] ?? v.status}</td>
                       <td>{v.mileage}</td>
                       <td className="cell-actions">
                         {can('VEHICLE_UPDATE') ? (
@@ -329,7 +374,7 @@ export function VehiclesPage() {
                           </button>
                         ) : null}
                         {can('VEHICLE_DELETE') ? (
-                          <button type="button" className="linkish danger" onClick={() => void onDelete(v)}>
+                          <button type="button" className="linkish danger" onClick={() => setConfirmDelete(v)}>
                             Archiver
                           </button>
                         ) : null}
@@ -416,6 +461,21 @@ export function VehiclesPage() {
                 />
               </label>
               <label className="field">
+                <span>IMEI du boîtier GPS *</span>
+                <input
+                  type="text"
+                  maxLength={15}
+                  pattern="\d{15}"
+                  required
+                  placeholder="862549041234567"
+                  value={form.imei ?? ''}
+                  onChange={(e) => setForm({ ...form, imei: e.target.value })}
+                />
+                <small className={(form.imei ?? '').match(/^\d{15}$/) ? 'tiny ok' : 'tiny danger'}>
+                  L'IMEI doit contenir exactement 15 chiffres .
+                </small>
+              </label>
+              <label className="field">
                 <span>Catégorie</span>
                 <select
                   value={form.category ?? ''}
@@ -453,6 +513,13 @@ export function VehiclesPage() {
                   ))}
                 </select>
               </label>
+              <div className="field field--full">
+                <button type="button" className="linkish" onClick={() => setShowAdvanced((v) => !v)}>
+                  {showAdvanced ? 'Masquer les détails avancés ▲' : 'Afficher les détails avancés ▼'}
+                </button>
+              </div>
+              {showAdvanced ? (
+                <>
               <label className="field">
                 <span>Kilométrage</span>
                 <input
@@ -528,6 +595,18 @@ export function VehiclesPage() {
                   }
                 />
               </label>
+                </>
+              ) : null}
+              <label className="field field--full">
+                <span>Photo véhicule</span>
+                <ImageUpload
+                  preview={previewUrl}
+                  onFile={(file) => {
+                    setPendingPhoto(file)
+                    setPreviewUrl(URL.createObjectURL(file))
+                  }}
+                />
+              </label>
               <label className="field">
                 <span>Disponibilité</span>
                 <select
@@ -541,7 +620,7 @@ export function VehiclesPage() {
                 >
                   {AVAILS.map((a) => (
                     <option key={a} value={a}>
-                      {a}
+                      {AVAIL_LABELS[a]}
                     </option>
                   ))}
                 </select>
@@ -556,7 +635,7 @@ export function VehiclesPage() {
                 >
                   {STATUSES.map((s) => (
                     <option key={s} value={s}>
-                      {s}
+                      {STATUS_LABELS[s]}
                     </option>
                   ))}
                 </select>
@@ -585,6 +664,20 @@ export function VehiclesPage() {
           {formMsg ? <p className="muted">{formMsg}</p> : null}
         </section>
       ) : null}
+      <ConfirmDialog
+        open={!!confirmDelete}
+        title="Archiver ce véhicule ?"
+        message={`Le véhicule ${confirmDelete?.plateNumber ?? ''} sera archivé (soft delete).`}
+        confirmLabel="Archiver définitivement"
+        confirmVariant="danger"
+        onCancel={() => setConfirmDelete(null)}
+        onConfirm={() => {
+          const v = confirmDelete
+          setConfirmDelete(null)
+          if (!v) return
+          void onDelete(v)
+        }}
+      />
     </div>
   )
 }

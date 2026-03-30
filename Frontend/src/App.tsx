@@ -16,6 +16,9 @@ import { RolesPage } from './pages/RolesPage'
 import { UsersPage } from './pages/UsersPage'
 import { VehicleDetailPage } from './pages/VehicleDetailPage'
 import { VehiclesPage } from './pages/VehiclesPage'
+import { NotificationsPage } from './pages/NotificationsPage'
+import { ZonesPage } from './pages/ZonesPage'
+import { PlaceholderPage } from './pages/PlaceholderPage'
 import { GpsTrackingPage } from './features/gps/pages/GpsTrackingPage'
 import { GpsAlertsDashboard } from './features/gps/pages/GpsAlertsDashboard'
 import { VehicleHistoryPage } from './features/gps/pages/VehicleHistoryPage'
@@ -43,6 +46,9 @@ export default function App() {
             <Route path="breakdowns" element={<BreakdownsPage />} />
             <Route path="fuel-records" element={<FuelRecordsPage />} />
             <Route path="profile" element={<ProfilePage />} />
+            <Route path="settings" element={<PlaceholderPage title="Paramètres" description="Page paramètres en cours." />} />
+            <Route path="notifications" element={<NotificationsPage />} />
+            <Route path="zones" element={<ZonesPage />} />
           </Route>
 
           <Route path="/gps" element={<DashboardLayout />}>

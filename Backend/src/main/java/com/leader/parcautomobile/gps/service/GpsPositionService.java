@@ -48,6 +48,7 @@ public class GpsPositionService {
 					.satellites(msg.satellites() == null ? 0 : msg.satellites())
 					.accuracy(msg.accuracy() == null ? 0D : msg.accuracy())
 					.ignition(msg.ignitionOn() != null ? msg.ignitionOn() : vehicle.isIgnitionOn())
+					.fuelLevel(msg.fuelLevel())
 					.recordedAt(msg.timestamp() != null ? msg.timestamp() : now)
 					.createdAt(now)
 					.build();
@@ -58,6 +59,9 @@ public class GpsPositionService {
 			vehicle.setLastSpeed(pos.getSpeed());
 			vehicle.setLastSeen(pos.getRecordedAt());
 			vehicle.setIgnitionOn(pos.isIgnition());
+			if (msg.fuelLevel() != null) {
+				vehicle.setFuelLevel(msg.fuelLevel());
+			}
 			vehicleRepository.save(vehicle);
 
 			GpsPositionDto dto = new GpsPositionDto(

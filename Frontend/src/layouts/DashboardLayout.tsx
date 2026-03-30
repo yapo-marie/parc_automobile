@@ -1,5 +1,6 @@
-import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
-import { useAuthStore } from '../store/authStore'
+import { NavLink, Outlet, useLocation } from 'react-router-dom'
+import { NotificationBell } from '../components/navbar/NotificationBell'
+import { UserDropdown } from '../components/navbar/UserDropdown'
 
 const nav = [
   { to: '/dashboard', end: true, label: 'Tableau de bord' },
@@ -16,26 +17,11 @@ const nav = [
   { to: '/gps/alerts', end: true, label: 'Alertes GPS' },
   { to: '/gps/history', end: true, label: 'Historique GPS' },
   { to: '/gps/geofences', end: true, label: 'Géo-clôtures' },
-  { to: '/dashboard/profile', label: 'Mon profil' },
+  { to: '/dashboard/zones', label: 'Zones' },
 ]
 
 export function DashboardLayout() {
   const location = useLocation()
-  const navigate = useNavigate()
-  const refreshToken = useAuthStore((s) => s.refreshToken)
-  const clear = useAuthStore((s) => s.clear)
-
-  async function logout() {
-    if (refreshToken) {
-      await fetch('/api/auth/logout', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ refreshToken }),
-      }).catch(() => {})
-    }
-    clear()
-    navigate('/login', { replace: true })
-  }
 
   return (
     <div className="shell">
@@ -92,11 +78,17 @@ export function DashboardLayout() {
             </NavLink>
           ))}
         </nav>
-        <button type="button" className="shell__logout btn-secondary" onClick={logout}>
-          Déconnexion
-        </button>
       </aside>
       <div className="shell__main">
+        <div className="shell__topbar">
+          <div className="shell__search">
+            <input type="search" placeholder="Recherche globale..." />
+          </div>
+          <div className="shell__topbar-actions">
+            <NotificationBell />
+            <UserDropdown />
+          </div>
+        </div>
         <Outlet />
       </div>
     </div>
