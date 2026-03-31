@@ -14,6 +14,7 @@ import { FuelRecordsPage } from './pages/FuelRecordsPage'
 import { FleetPage } from './pages/FleetPage'
 import { RolesPage } from './pages/RolesPage'
 import { UsersPage } from './pages/UsersPage'
+import { DriversPage } from './pages/DriversPage'
 import { VehicleDetailPage } from './pages/VehicleDetailPage'
 import { VehiclesPage } from './pages/VehiclesPage'
 import { NotificationsPage } from './pages/NotificationsPage'
@@ -40,6 +41,7 @@ export default function App() {
             <Route path="fleet" element={<FleetPage />} />
             <Route path="vehicles" element={<VehiclesPage />} />
             <Route path="vehicles/:id" element={<VehicleDetailPage />} />
+            <Route path="drivers" element={<DriversPage />} />
             <Route path="reservations" element={<ReservationsPage />} />
             <Route path="assignments" element={<AssignmentsPage />} />
             <Route path="technical-visits" element={<TechnicalVisitsPage />} />

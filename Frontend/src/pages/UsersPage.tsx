@@ -1,8 +1,6 @@
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
-import { Link } from 'react-router-dom'
+import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import {
   createUser,
-  deleteUser,
   fetchRoleNames,
   fetchUsers,
   patchUserStatus,
@@ -10,27 +8,14 @@ import {
 import { apiFetch } from '../api/client'
 import type { CreateUserPayload, UserDto } from '../types/user'
 import { ConfirmDialog } from '../components/common/ConfirmDialog'
-
-const STATUS_OPTIONS: { value: string; label: string }[] = [
-  { value: '', label: 'Tous' },
-  { value: 'ACTIVE', label: 'Actif' },
-  { value: 'INACTIVE', label: 'Inactif' },
-  { value: 'LOCKED', label: 'Verrouillé' },
-]
+import { Shield, UsersRound, KeyRound, Plus } from 'lucide-react'
 
 export function UsersPage() {
   const [meAuths, setMeAuths] = useState<string[] | null>(null)
   const [rows, setRows] = useState<UserDto[]>([])
   const [page, setPage] = useState(0)
   const [totalPages, setTotalPages] = useState(0)
-  const [totalElements, setTotalElements] = useState(0)
   const [size] = useState(10)
-  const [qDraft, setQDraft] = useState('')
-  const [appliedQ, setAppliedQ] = useState('')
-  const [statusDraft, setStatusDraft] = useState('')
-  const [appliedStatus, setAppliedStatus] = useState('')
-  const [roleDraft, setRoleDraft] = useState('')
-  const [appliedRole, setAppliedRole] = useState('')
   const [roleNames, setRoleNames] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -61,20 +46,16 @@ export function UsersPage() {
     try {
       const data = await fetchUsers({
         page,
-        size,
-        q: appliedQ || undefined,
-        status: appliedStatus || undefined,
-        role: appliedRole || undefined,
+        size
       })
       setRows(data.content)
       setTotalPages(data.totalPages)
-      setTotalElements(data.totalElements)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Erreur de chargement')
     } finally {
       setLoading(false)
     }
-  }, [page, size, appliedQ, appliedStatus, appliedRole])
+  }, [page, size])
 
   useEffect(() => {
     void (async () => {
@@ -163,130 +144,79 @@ export function UsersPage() {
     }
   }
 
-  async function onDelete(u: UserDto) {
-    setConfirmAction({
-      title: 'Archiver cet utilisateur ?',
-      message: `Cette action va supprimer logiquement le compte de ${u.firstname} ${u.lastname}.`,
-      variant: 'danger',
-      run: async () => {
-        await deleteUser(u.id)
-        await load()
-      },
-    })
-  }
 
-  const roleOptions = useMemo(() => [...roleNames].sort(), [roleNames])
 
   return (
     <div className="dash-page users-page">
-      <p className="dash-back">
-        <Link to="/dashboard">← Tableau de bord</Link>
-      </p>
-      <h1>Utilisateurs</h1>
-      <p className="dash-lead">
-        Liste paginée, filtres et création (API <code>/api/users</code>).
-      </p>
+      <div className="page-header">
+        <div className="page-title-group">
+          <Shield size={24} color="#10b981" />
+          <h1>Administration</h1>
+        </div>
+        <p className="dash-lead">
+          Gestion des utilisateurs et des rôles (RBAC)
+        </p>
+      </div>
 
       {error ? <p className="alert alert--error">{error}</p> : null}
 
-      <section className="card card--flat users-filters">
-        <h2 className="users-h2">Filtres</h2>
-        <div className="filters-grid">
-          <label className="field field--inline">
-            <span>Recherche</span>
-            <input
-              value={qDraft}
-              onChange={(e) => setQDraft(e.target.value)}
-              placeholder="Nom, prénom, email"
-            />
-          </label>
-          <label className="field field--inline">
-            <span>Statut</span>
-            <select
-              value={statusDraft}
-              onChange={(e) => setStatusDraft(e.target.value)}
-            >
-              {STATUS_OPTIONS.map((o) => (
-                <option key={o.value || 'all'} value={o.value}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="field field--inline">
-            <span>Rôle</span>
-            <select value={roleDraft} onChange={(e) => setRoleDraft(e.target.value)}>
-              <option value="">Tous</option>
-              {roleOptions.map((r) => (
-                <option key={r} value={r}>
-                  {r}
-                </option>
-              ))}
-            </select>
-          </label>
-          <button
-            type="button"
-            className="btn-inline"
-            onClick={() => {
-              setAppliedQ(qDraft.trim())
-              setAppliedStatus(statusDraft)
-              setAppliedRole(roleDraft)
-              setPage(0)
-            }}
-          >
-            Appliquer
-          </button>
-        </div>
-      </section>
-
-      <section className="card card--flat">
-        <h2 className="users-h2">Liste</h2>
-        {loading ? (
-          <p className="muted">Chargement…</p>
-        ) : (
-          <>
-            <div className="table-wrap">
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th>Nom</th>
-                    <th>Email</th>
-                    <th>Statut</th>
-                    <th>Rôles</th>
-                    <th />
-                  </tr>
-                </thead>
-                <tbody>
-                  {rows.map((u) => (
-                    <tr key={u.id}>
-                      <td>
-                        {u.firstname} {u.lastname}
-                      </td>
-                      <td>{u.email}</td>
-                      <td>{u.status}</td>
-                      <td className="cell-roles">{u.roleNames.join(', ')}</td>
-                      <td className="cell-actions">
-                        {can('USER_UPDATE') && u.status === 'ACTIVE' ? (
-                          <button type="button" className="linkish" onClick={() => void onDeactivate(u)}>
-                            Désactiver
-                          </button>
-                        ) : null}
-                        {can('USER_UPDATE') && u.status === 'INACTIVE' ? (
-                          <button type="button" className="linkish" onClick={() => void onActivate(u)}>
-                            Activer
-                          </button>
-                        ) : null}
-                        {can('USER_DELETE') ? (
-                          <button type="button" className="linkish danger" onClick={() => void onDelete(u)}>
-                            Archiver
-                          </button>
-                        ) : null}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+      <div className="admin-grid">
+        <div className="admin-column">
+          <section className="card card--flat">
+            <div className="card-header-flex">
+              <div className="page-title-group" style={{ marginBottom: 0 }}>
+                <UsersRound size={18} color="#64748b" />
+                <h2 className="users-h2" style={{ margin: 0 }}>Utilisateurs</h2>
+              </div>
+              {can('USER_CREATE') && (
+                <button type="button" className="btn-primary" onClick={() => {}}>
+                  <Plus size={16} />
+                  Ajouter
+                </button>
+              )}
             </div>
+
+            {loading ? (
+              <p className="muted">Chargement…</p>
+            ) : (
+              <div className="table-wrap">
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>Utilisateur</th>
+                      <th>Rôle</th>
+                      <th>Actif</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {rows.map((u) => (
+                      <tr key={u.id}>
+                        <td>
+                          <div style={{ fontWeight: 600 }}>{u.firstname} {u.lastname?.charAt(0)}.</div>
+                          <div className="muted">{u.email}</div>
+                        </td>
+                        <td>
+                          {u.roleNames.map(r => (
+                            <span key={r} className={`badge ${r.toLowerCase() === 'admin' ? 'badge--danger' : r.toLowerCase() === 'manager' ? 'badge--info' : 'badge--neutral'}`} style={{ marginRight: '4px' }}>
+                              {r.toLowerCase()}
+                            </span>
+                          ))}
+                        </td>
+                        <td>
+                          <input 
+                            type="checkbox" 
+                            className="toggle-switch" 
+                            checked={u.status === 'ACTIVE'}
+                            onChange={() => u.status === 'ACTIVE' ? onDeactivate(u) : onActivate(u)}
+                            disabled={!can('USER_UPDATE')}
+                          />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
             <div className="pager">
               <button
                 type="button"
@@ -295,9 +225,6 @@ export function UsersPage() {
               >
                 Précédent
               </button>
-              <span className="muted">
-                Page {page + 1} / {Math.max(1, totalPages)} — {totalElements} utilisateur(s)
-              </span>
               <button
                 type="button"
                 disabled={page + 1 >= totalPages}
@@ -306,9 +233,58 @@ export function UsersPage() {
                 Suivant
               </button>
             </div>
-          </>
-        )}
-      </section>
+          </section>
+        </div>
+
+        <div className="admin-column">
+          <section className="card card--flat">
+            <div className="card-header-flex">
+              <div className="page-title-group" style={{ marginBottom: 0 }}>
+                <KeyRound size={18} color="#64748b" />
+                <h2 className="users-h2" style={{ margin: 0 }}>Rôles & Accès</h2>
+              </div>
+              <button type="button" className="btn-primary">
+                <Plus size={16} />
+                Nouveau rôle
+              </button>
+            </div>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+              <div style={{ border: '1px solid #e2e8f0', borderRadius: '8px', padding: '1rem' }}>
+                <h3 style={{ margin: '0 0 0.5rem', fontSize: '1rem' }}>Admin</h3>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+                  <span className="badge badge--neutral">/</span>
+                  <span className="badge badge--neutral">/vehicles</span>
+                  <span className="badge badge--neutral">/tracking</span>
+                  <span className="badge badge--neutral">/alerts</span>
+                  <span className="badge badge--neutral">/maintenance</span>
+                  <span className="badge badge--neutral">/admin</span>
+                </div>
+              </div>
+              <div style={{ border: '1px solid #e2e8f0', borderRadius: '8px', padding: '1rem' }}>
+                <h3 style={{ margin: '0 0 0.5rem', fontSize: '1rem' }}>Manager</h3>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+                  <span className="badge badge--neutral">/</span>
+                  <span className="badge badge--neutral">/vehicles</span>
+                  <span className="badge badge--neutral">/tracking</span>
+                  <span className="badge badge--neutral">/alerts</span>
+                  <span className="badge badge--neutral">/maintenance</span>
+                </div>
+              </div>
+              <div style={{ border: '1px solid #e2e8f0', borderRadius: '8px', padding: '1rem' }}>
+                <h3 style={{ margin: '0 0 0.5rem', fontSize: '1rem' }}>Operator</h3>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+                  <span className="badge badge--neutral">/</span>
+                  <span className="badge badge--neutral">/vehicles</span>
+                  <span className="badge badge--neutral">/tracking</span>
+                  <span className="badge badge--neutral">/alerts</span>
+                </div>
+              </div>
+            </div>
+          </section>
+        </div>
+      </div>
+
 
       {can('USER_CREATE') ? (
         <section className="card">
